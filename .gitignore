@@ -1,0 +1,18 @@
+# Ignore data artifacts
+*.gz
+*.bgz
+*.tbi
+*.tgz
+*.bcf
+*.cram
+*.bam
+*.json
+*.csi
+*.tsv
+*.txt
+
+# IDE artifacts
+*.swp
+
+# Exploratory scripts
+scratch/*

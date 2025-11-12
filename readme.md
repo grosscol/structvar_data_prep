@@ -33,3 +33,10 @@ For the variant with the most homozygous calls, there were only 51 samples that 
 At end:
 - Concatenate depth data into single data set.
 - Compile samplot style data into single data set.
+
+## Notes
+The position column is 0-based and the variant id column is 1 based
+```txt
+chr2    0       DEL_2:1-126300  N       <DEL>   -99     126400
+chr2    10000   DUP_2:10001-32200       C       <DUP>   9901    32300
+```

@@ -1,43 +1,44 @@
 #!/usr/bin/env bash
 
+# Expected use:
+#  generate_summary.sh chr1
+# Emits summary_sv_reads_chr1.json.gz
+
+REGION="${1:-chr1}"
 INPUT_FILE=sv_crams.tsv.gz
 CRAM_SUMMARIZER=/net/wonderland/home/grosscol/projects/het_hom_selector/build/cram_summarizer/bin/cram_summ
 REF_FILE=/net/topmed/working/atks/ref/hs38DH.fa
+OUTPUT_FILE="sv_summary_${REGION}.json"
 
-
-# jq script to trim out unusable reads and annotate summary data
-read -r -d '' JQSCRIPT << 'HEREDOC'
-def chroms_only:
-  if type == "object" and .chr != null
-  then 
-    select(.chr | test("^chr([0-9]{1,2}|X|Y)$"))
-  else 
-    . 
-  end;
-
-walk(chroms_only) | .chr = $chr | .pos=$pos | .end=$stop
-HEREDOC
-
+# Results holding directory
+mkdir -p pipes
+mkdir -p results
+echo "[" > results/${OUTPUT_FILE}
 
 # While reading input file, translate tabs to '@' to avoid consecutive whitespace delimiters.
 #  They would be collapsed to a single delimiter due to how Bash does word splitting.
 OLD_IFS="${IFS}"
 IFS='@'
-SAMPLE=0
+ROWNUM=0
 while read -ra ROW; do
-  echo "--------------------- ${SAMPLE}"
+  if [[ ${ROWNUM} -gt 0 ]]; then
+    echo ',' >> results/${OUTPUT_FILE}
+  fi
+
+  echo "Processing ${ROWNUM}"
   IFS=';' read -ra CRAMS <<< "${ROW[9]}"
   CHR=${ROW[0]}
   START=${ROW[5]}
   END=${ROW[6]}
   SV_ID=${ROW[2]}
 
+
   # Generate one pipe per cram and begin reading into it.
   PIPES=()
   PIPE_COUNT=0
   for CRAM in "${CRAMS[@]}"; do
     if [ -f "${CRAM}" ]; then
-      PIPE_NAME="pipe_${PIPE_COUNT}.bam"
+      PIPE_NAME="pipes/pipe_${REGION}_${PIPE_COUNT}.bam"
       mkfifo ${PIPE_NAME}
       PIPES+=( ${PIPE_NAME} )
       let "PIPE_COUNT = PIPE_COUNT + 1"
@@ -48,30 +49,29 @@ while read -ra ROW; do
     fi
   done
 
-  mkfifo pipe_out.bam
+  # # Merge all crams into a single pipe
+  PIPE_MERGE="pipes/pipe_${REGION}_merge.bam"
+  mkfifo "${PIPE_MERGE}"
+  samtools merge -f -o "${PIPE_MERGE}" "${PIPES[@]}" &
 
-  # # Merge all crams
-  echo "Filling merge pipe"
-  samtools merge -f -o "pipe_out.bam" "${PIPES[@]}" &
-
-  # Summarize merged bams.
-  # Process summaries to annote and remove unusable reads.
-  echo "Summarizing"
-  # ${CRAM_SUMMARIZER} "out_${SAMPLE}.bam" | gzip > "summary_${SAMPLE}.json.gz"
-  #   jq --argjson sv_id ${SV_ID} --argjson chr "${CHR}" --argjson pos ${START} \
-  #      --argjson end ${END} "${JQSCRIPT}" |\
-  ${CRAM_SUMMARIZER} "pipe_out.bam" |\
-   jq --arg sv_id "${SV_ID}" --arg chr "${CHR}" \
-     --argjson pos ${START} --argjson stop ${END} -f trim_by_chrom.jq |\
-   gzip > "trimmed_summ_${SAMPLE}.json.gz"
-
+  # Summarize merged bams, remove unusable reads, and annote.
+  # Append to output file
+  ${CRAM_SUMMARIZER} "${PIPE_MERGE}" |\
+   jq --compact-output --arg sv_id "${SV_ID}" --arg chr "${CHR}" \
+     --argjson pos ${START} --argjson stop ${END} -f trim_by_chrom.jq >> results/${OUTPUT_FILE}
+   #gzip > "results/trimmed_summ_${SV_ID}.json.gz"
 
   # Cleanup pipes
   for P in ${PIPES[@]}
   do
     rm ${P}
   done
-  rm pipe_out.bam
+  rm "${PIPE_MERGE}"
 
-  let "SAMPLE = SAMPLE + 1"
-done < <(zcat "${INPUT_FILE}" | tail -n +5 | head -n 2 | tr $'\t' '@')
+  let "ROWNUM = ROWNUM + 1"
+done < <(tabix "${INPUT_FILE}" "${REGION}" | tr $'\t' '@')
+
+echo -n "]" >> results/${OUTPUT_FILE}
+
+echo "gzipping results"
+gzip -f results/${OUTPUT_FILE}

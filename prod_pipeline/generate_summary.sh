@@ -67,7 +67,7 @@ while read -ra ROW; do
   ${CRAM_SUMMARIZER} -s "${DOWNSAMPLE}" "${PIPE_MERGE}" |\
     jq --compact-output --arg sv_id "${SV_ID}" --arg chr "${CHR}" \
       --argjson pos ${START} --argjson stop ${END} -f trim_by_chrom.jq |\
-    sed 's/is_reverse/rev/;s/true/1/;s/false/0/' >> ${OUTPUT_FILE}
+    sed 's/is_reverse/rev/g;s/start/s/g;s/true/1/g;s/false/0/g' >> ${OUTPUT_FILE}
 
   # Cleanup pipes
   for P in ${PIPES[@]}

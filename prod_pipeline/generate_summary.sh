@@ -4,7 +4,7 @@
 #   Subsample alignments in variant region for each sample (hets & homs)
 #
 # Positional params:
-#  1. Region pssed to tabix
+#  1. Region passed to tabix
 
 # Expected use:
 #  generate_summary.sh chr1

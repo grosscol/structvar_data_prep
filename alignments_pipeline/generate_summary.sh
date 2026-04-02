@@ -33,10 +33,14 @@ while read -ra ROW; do
 
   IFS=';' read -ra CRAMS <<< "${ROW[9]}"
   CHR=${ROW[0]}
-  START=${ROW[5]}
-  END=${ROW[6]}
+  BED_START=${ROW[5]}
+  BED_END=${ROW[6]}
   SV_ID=${ROW[2]}
   DOWNSAMPLE=$(( 5 * ${#CRAMS[@]} ))
+
+  # Position calculation to account for 100bp expansion in select_samples.sh
+  POS=$(($BED_START +100))
+  STOP=$(($BED_END -100))
 
   echo "Processing ${ROWNUM} C:${#CRAMS[@]} S:${DOWNSAMPLE}"
 
@@ -50,7 +54,7 @@ while read -ra ROW; do
       PIPES+=( ${PIPE_NAME} )
       let "PIPE_COUNT = PIPE_COUNT + 1"
 
-      samtools view -x XA -b --reference ${REF_FILE} ${CRAM} "${CHR}:${START}-${END}" > ${PIPE_NAME} &
+      samtools view -x XA -b --reference ${REF_FILE} ${CRAM} "${CHR}:${BED_START}-${BED_END}" > ${PIPE_NAME} &
     else
       echo "CRAM not found! ${CRAM}" >&2
     fi
@@ -66,7 +70,7 @@ while read -ra ROW; do
   # Append to output file
   ${CRAM_SUMMARIZER} -s "${DOWNSAMPLE}" "${PIPE_MERGE}" |\
     jq --compact-output --arg sv_id "${SV_ID}" --arg chr "${CHR}" \
-      --argjson pos ${START} --argjson stop ${END} -f trim_by_chrom.jq |\
+      --argjson pos ${POS} --argjson stop ${STOP} -f trim_by_chrom.jq |\
     sed 's/is_reverse/rev/g;s/start/s/g;s/true/1/g;s/false/0/g' >> ${OUTPUT_FILE}
 
   # Cleanup pipes

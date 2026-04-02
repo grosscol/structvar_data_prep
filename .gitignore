@@ -16,3 +16,13 @@
 
 # Exploratory scripts
 scratch/*
+
+# Data directories and binaries
+cram_summ
+crams/*
+data*
+het_hom_sel
+
+**/results
+**/pipes
+

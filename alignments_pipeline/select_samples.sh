@@ -23,7 +23,6 @@ BEGIN { FS="\t"; OFS = FS}
   bed_start = strtonum(pos_arr[1]) - 100; 
   bed_end = strtonum(pos_arr[2]) + 100;
   
-  print "dbg", bed_start, bed_end, "dbg"
   print $1, $2, $3, $4, $5, bed_start, bed_end, $6, $7;
 }
 HEREDOC

@@ -10,7 +10,7 @@ HETHOM_BIN=/net/wonderland/home/grosscol/projects/het_hom_selector/build/het_hom
 NO_GENOS_FILE=no_genotypes.tsv
 RESULT_FILE=sv_selected.tsv.gz
 
-# Awk script to parse ID column into begin and end -/+ 100 postions
+# Awk script to parse ID column into bed_start and bed_end -/+ 100 postions
 read -r -d '' IDPARSE << "HEREDOC"
 BEGIN { FS="\t"; OFS = FS}
 /^#/     {
@@ -29,6 +29,8 @@ HEREDOC
 
 
 # Awk script to remove entries without genotypes
+#  Identified by two consecutive delimters at end of file indicating:
+#  no het or hom genotypes OR no corresponding crams were found.
 read -r -d '' NOGENOS << "HEREDOC"
 BEGIN { 
  FS="\t"; OFS = FS;
@@ -38,7 +40,7 @@ BEGIN {
 !/\t\t$/ {print $0}
 HEREDOC
 
-Processing
+# Processing
 ${HETHOM_BIN} rnd -n 5 --seed 20251009 --emit-id ${SV_BCF}|\
   awk "${IDPARSE}" |\
   awk "${NOGENOS}" |\

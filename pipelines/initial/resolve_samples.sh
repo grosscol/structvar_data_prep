@@ -16,8 +16,10 @@ WHERE_SH=/net/mario/cluster/topmed/bin/utils/where.sh
 OLD_IFS="${IFS}"
 IFS='@'
 while read -ra ARR; do
+  # Handle header column
   if [[ "${ARR[0]}" == "#CHROM" ]]; then
     (IFS=$'\t'; echo -e "${ARR[*]}\tCRAMS")
+  # Handle header lines
   elif [[ "${ARR[0]}" =~ ^# ]]; then 
     echo -e "${ARR[*]}"
   else 

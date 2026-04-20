@@ -14,7 +14,7 @@ variants with samples:  482,950
 
 For the variant with the most homozygous calls, there were only 51 samples that were not carriers of the structural variant.
 
-## Stage 1. Generate mapping file
+## Stage 1. Generate initial mapping file
 This pipeline produces the mapping file that will be subsequently used by downstream pipelines.
 Holds INFO fields region and crams for each variant.
 

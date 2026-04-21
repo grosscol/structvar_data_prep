@@ -3,8 +3,11 @@
 # Expected use:
 #   resolve_samples.sh
 
-INPUT_FILE=sv_selected.tsv.gz
-RESULT_FILE=sv_crams.tsv.gz
+PROC_DATA_DIR=/net/wonderland/home/grosscol/projects/structvar/proc_data
+RESULT_DIR=/net/wonderland/home/grosscol/projects/structvar/result
+
+INPUT_FILE=${PROC_DATA_DIR}/sv_selected.tsv.gz
+RESULT_FILE=${PROC_DATA_DIR}/sv_crams.tsv.gz
 
 # where.sh script resovlves cram location from SAMPLE ID
 #  requires PROJECT environment variable defined
@@ -20,9 +23,9 @@ while read -ra ARR; do
   if [[ "${ARR[0]}" == "#CHROM" ]]; then
     (IFS=$'\t'; echo -e "${ARR[*]}\tCRAMS")
   # Handle header lines
-  elif [[ "${ARR[0]}" =~ ^# ]]; then 
+  elif [[ "${ARR[0]}" =~ ^# ]]; then
     echo -e "${ARR[*]}"
-  else 
+  else
     IFS=',' read -ra HOMS <<< "${ARR[7]}"
     IFS=',' read -ra HETS <<< "${ARR[8]}"
     IDS=("${HOMS[@]}" "${HETS[@]}")

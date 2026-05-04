@@ -36,6 +36,8 @@ while read -ra ARR; do
     for ID in "${IDS[@]}"; do
       CRAM=$(${WHERE_SH} "${ID}" b38)
       CRAMS+=("${CRAM}")
+      # Avoid slamming the database with rapid requests by limit 10/second
+      sleep .1
     done
 
     CRAMS_STR=$(IFS=';'; echo "${CRAMS[*]}")

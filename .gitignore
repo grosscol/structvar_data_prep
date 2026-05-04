@@ -26,3 +26,6 @@ het_hom_sel
 **/results
 **/pipes
 
+# Running artifact
+nohup.out
+debug.log

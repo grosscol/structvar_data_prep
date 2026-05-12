@@ -30,8 +30,8 @@ echo "${TEMPLATE}"
 }
 
 # Lookups for year 1 and 2 path schemes
-Y1_2_TOP_DIR=('qw/topmed10' 'topmed9' 'topmed6' 'topmed7' 'topmed9' 'topmed10/')
-Y1_2_SUB_DIR=('qw/working' 'working' 'incoming' 'incoming' 'incoming' 'incoming/')
+Y1_2_TOP_DIR=('topmed10' 'topmed9' 'topmed6' 'topmed7' 'topmed9' 'topmed10/')
+Y1_2_SUB_DIR=('working' 'working' 'incoming' 'incoming' 'incoming' 'incoming/')
 
 # Arguments: bam_id, centername, piname, nwdid
 # Emits path to cram file per first naming scheme for organizing files.
@@ -55,8 +55,8 @@ path_scheme_two(){
 }
 
 
-Y3_TOP_DIR=('qw/topmed' 'topmed2' 'topmed3' 'topmed7' 'topmed5' 'topmed6' 'topmed7' 'topmed9/')
-Y3_SUB_DIR=('qw/working' 'working' 'working' 'working' 'incoming' 'incoming' 'incoming' 'incoming/')
+Y3_TOP_DIR=('topmed' 'topmed2' 'topmed3' 'topmed7' 'topmed5' 'topmed6' 'topmed7' 'topmed9/')
+Y3_SUB_DIR=('working' 'working' 'working' 'working' 'incoming' 'incoming' 'incoming' 'incoming/')
 
 # Arguments: bam_id, centername, piname, nwdid
 # Emits path to cram file per third naming scheme for organizing files.
@@ -72,7 +72,7 @@ path_scheme_three(){
 # Main Loop #
 #############
 
-# Convert arguments to quoted comma separated string
+# Convert arguments (IDs) to quoted comma separated string
 IDS=$(echo "'$*'" | sed "s/ /', '/g")
 
 # Create credentials file if doesn't exist
@@ -87,8 +87,8 @@ MYSQL_CMD_OPTS="--login-path=topmed --database=nhlbi --batch --skip-column-names
 
 generate_query "${IDS}" |\
   mysql ${MYSQL_CMD_OPTS} |\
-  tee debug.log |\
   while IFS=$'\t' read -a LINEARR; do
+    echo "${LINEARR[@]}"
     BAM_ID=${LINEARR[0]}
     PI_NAME=${LINEARR[2]}
     NWD_ID=${LINEARR[3]}

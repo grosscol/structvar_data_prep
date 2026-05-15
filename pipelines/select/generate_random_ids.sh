@@ -24,12 +24,6 @@ fi
 let "N_RND = N_IDS + 100"
 let "N_RAW_CHARS = N_RND * ID_LEN"
 
-#readarray -t RND_IDS < <( cat /dev/urandom |\
-#  LC_ALL=C tr -dc A-Z0-9 |\
-#  head -c ${N_RAW_CHARS} |\
-#  fold -w ${ID_LEN} - |\
-#  awk '!x[$0]++')
-
 cat /dev/urandom |\
   LC_ALL=C tr -dc A-Z0-9 |\
   head -c ${N_RAW_CHARS} |\

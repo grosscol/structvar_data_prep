@@ -88,7 +88,6 @@ MYSQL_CMD_OPTS="--login-path=topmed --database=nhlbi --batch --skip-column-names
 generate_query "${IDS}" |\
   mysql ${MYSQL_CMD_OPTS} |\
   while IFS=$'\t' read -a LINEARR; do
-    echo "${LINEARR[@]}"
     BAM_ID=${LINEARR[0]}
     PI_NAME=${LINEARR[2]}
     NWD_ID=${LINEARR[3]}

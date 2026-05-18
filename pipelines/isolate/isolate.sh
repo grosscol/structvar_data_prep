@@ -4,12 +4,21 @@
 # Read throught the file, splitting input lines into separate output files when the struct variant
 # would overlap with a previous structural variant.
 
-PROC_DATA_DIR=/net/wonderland/home/grosscol/projects/structvar/proc_data
-OUTPUT_DIR="${PROC_DATA_DIR}/isolated"
-INPUT_FILE=${PROC_DATA_DIR}/sv_selected.tsv.gz
 IFS=$'\t'
+PROC_DATA_DIR=/net/wonderland/home/grosscol/projects/structvar/proc_data
 
-mkdir ${OUTPUT_DIR}
+##########
+# Inputs #
+##########
+INPUT_FILE=${PROC_DATA_DIR}/sv_selected.tsv.gz
+
+###########
+# Outputs #
+###########
+OUTPUT_DIR="${PROC_DATA_DIR}/isolated"
+INDEX_FILE=${PROC_DATA_DIR}/sv_cram_map.tsv
+
+mkdir -p ${OUTPUT_DIR}
 
 ###############################################
 # Derermine where header ends and data begins #
@@ -42,7 +51,7 @@ RECORD_NUM=0
 #####################
 generate_new_dest(){
   # Args: DIR, CHR, INDEX
-  printf -v DEST_STR "%s_selected_p%.2d.tsv" $2 $3
+  printf -v DEST_STR "%s_selected_p%.3d.tsv" $2 $3
   echo "${1}/${DEST_STR}"
 }
 
@@ -80,7 +89,7 @@ while read -ra ARR; do
     CURR_CHR=${CHR}
     CURR_DEST_IDX=0
 
-    DEST_ARR[${CURR_DEST_IDX}]=$(generate_new_dest "${PROC_DATA_DIR}" "${CHR}" "${CURR_DEST_IDX}")
+    DEST_ARR[${CURR_DEST_IDX}]=$(generate_new_dest "${OUTPUT_DIR}" "${CHR}" "${CURR_DEST_IDX}")
     echo "" > ${DEST_ARR[${CURR_DEST_IDX}]}
 
     ENDS_ARR[$CURR_DEST_IDX]=0
@@ -90,6 +99,16 @@ while read -ra ARR; do
   # When overlap with current buffer and start position of sv
   # Find existing buffer withouth overlap or begin a new buffer
   if [ ! ${START} -gt ${ENDS_ARR[$CURR_DEST_IDX]} ]; then
+    LEN=${#ENDS_ARR[@]}
+    PREV_IDX=$((CURR_IDX - 1))
+    NEXT_IDX=$((CURR_IDX + 1))
+    END_IDX=$(( LEN - 1))
+
+    # Search forward through buffers
+    LOWER_IDXS=$(seq -s ' '  0 ${PREV_IDX})
+    UPPER_IDXS=$(seq -s ' '  ${NEXT_IDX} ${END_IDX})
+    SEARCH_ORDER=(${UPPER_IDXS} ${LOWER_IDXS})
+
     CURR_DEST_IDX=-1
     for IDX in "${!ENDS_ARR[@]}"; do
       if [ ${START} -gt ${ENDS_ARR[$IDX]} ]; then
@@ -101,7 +120,7 @@ while read -ra ARR; do
     # Create new buffer when non-overlapping is not available
     if [ $CURR_DEST_IDX = -1 ]; then
       LEN=${#ENDS_ARR[@]}
-      CURR_DEST_IDX=$(( LEN ))
+      CURR_DEST_IDX=${LEN}
 
       ENDS_ARR[${CURR_DEST_IDX}]=0
       DEST_ARR[${CURR_DEST_IDX}]=$(generate_new_dest "${OUTPUT_DIR}" "${CHR}" "${CURR_DEST_IDX}")
@@ -113,14 +132,12 @@ while read -ra ARR; do
   # Append line to output buffer.
   BUFF_ARR[${CURR_DEST_IDX}]+="${ARR[*]}\n"
   ENDS_ARR[${CURR_DEST_IDX}]=$((END + BP_SPACE))
+
+  # Emit corresponding index record
+  echo -e "${ID}\t${CURR_DEST_IDX}" >> "${INDEX_FILE}"
+
   RECORD_NUM=$(( RECORD_NUM + 1 ))
-done < <(zcat "${INPUT_FILE}" | tail -n +${DATA_START_ROW})
-
-
-# Debug
-debug_state
+done < <(zcat "${INPUT_FILE}" | tail -n +${DATA_START_ROW} | head -n 500)
 
 # Final flush of buffers to disk
 flush_dest_buffers
-
-echo "done"

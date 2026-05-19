@@ -57,7 +57,7 @@ generate_new_dest(){
 
 flush_dest_buffers(){
   for IDX in "${!DEST_ARR[@]}"; do
-    # Chomp last two chracters "\n" to avoid writing trailing endline
+    # Chomp last two chracters "\n" to avoid writing trailing endline at end of file
     echo -e "${BUFF_ARR[$IDX]::-2}" > "${DEST_ARR[$IDX]}"
   done
   # Clear arrays
@@ -111,7 +111,7 @@ while read -ra ARR; do
     SEARCH_ORDER=(${UPPER_IDXS} ${LOWER_IDXS})
 
     CURR_DEST_IDX=-1
-    for IDX in "${!SEARCH_ORDER[@]}"; do
+    for IDX in "${SEARCH_ORDER[@]}"; do
       if [ ${START} -gt ${ENDS_ARR[$IDX]} ]; then
         CURR_DEST_IDX=$IDX
         break
@@ -137,7 +137,7 @@ while read -ra ARR; do
   echo -e "${ID}\t${CURR_DEST_IDX}" >> "${INDEX_FILE}"
 
   RECORD_NUM=$(( RECORD_NUM + 1 ))
-done < <(zcat "${INPUT_FILE}" | tail -n +${DATA_START_ROW} | head -n 200)
+done < <(zcat "${INPUT_FILE}" | tail -n +${DATA_START_ROW})
 
 # Final flush of buffers to disk
 flush_dest_buffers

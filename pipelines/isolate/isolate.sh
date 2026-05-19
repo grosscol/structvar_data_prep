@@ -57,7 +57,8 @@ generate_new_dest(){
 
 flush_dest_buffers(){
   for IDX in "${!DEST_ARR[@]}"; do
-    echo -e "${BUFF_ARR[$IDX]}" > "${DEST_ARR[$IDX]}"
+    # Chomp last two chracters "\n" to avoid writing trailing endline
+    echo -e "${BUFF_ARR[$IDX]::-2}" > "${DEST_ARR[$IDX]}"
   done
   # Clear arrays
   DEST_ARR=()
@@ -100,17 +101,17 @@ while read -ra ARR; do
   # Find existing buffer withouth overlap or begin a new buffer
   if [ ! ${START} -gt ${ENDS_ARR[$CURR_DEST_IDX]} ]; then
     LEN=${#ENDS_ARR[@]}
-    PREV_IDX=$((CURR_IDX - 1))
-    NEXT_IDX=$((CURR_IDX + 1))
+    PREV_IDX=$((CURR_DEST_IDX - 1))
+    NEXT_IDX=$((CURR_DEST_IDX + 1))
     END_IDX=$(( LEN - 1))
 
     # Search forward through buffers
-    LOWER_IDXS=$(seq -s ' '  0 ${PREV_IDX})
-    UPPER_IDXS=$(seq -s ' '  ${NEXT_IDX} ${END_IDX})
+    LOWER_IDXS=$(seq -s "$IFS"  0 ${PREV_IDX})
+    UPPER_IDXS=$(seq -s "$IFS"  ${NEXT_IDX} ${END_IDX})
     SEARCH_ORDER=(${UPPER_IDXS} ${LOWER_IDXS})
 
     CURR_DEST_IDX=-1
-    for IDX in "${!ENDS_ARR[@]}"; do
+    for IDX in "${!SEARCH_ORDER[@]}"; do
       if [ ${START} -gt ${ENDS_ARR[$IDX]} ]; then
         CURR_DEST_IDX=$IDX
         break
@@ -125,7 +126,6 @@ while read -ra ARR; do
       ENDS_ARR[${CURR_DEST_IDX}]=0
       DEST_ARR[${CURR_DEST_IDX}]=$(generate_new_dest "${OUTPUT_DIR}" "${CHR}" "${CURR_DEST_IDX}")
       BUFF_ARR[${CURR_DEST_IDX}]=""
-      CURR_DEST_IDX=$NEXT_DEST_IDX
     fi
   fi
 
@@ -137,7 +137,7 @@ while read -ra ARR; do
   echo -e "${ID}\t${CURR_DEST_IDX}" >> "${INDEX_FILE}"
 
   RECORD_NUM=$(( RECORD_NUM + 1 ))
-done < <(zcat "${INPUT_FILE}" | tail -n +${DATA_START_ROW} | head -n 500)
+done < <(zcat "${INPUT_FILE}" | tail -n +${DATA_START_ROW} | head -n 200)
 
 # Final flush of buffers to disk
 flush_dest_buffers

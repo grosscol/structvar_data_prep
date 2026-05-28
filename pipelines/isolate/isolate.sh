@@ -3,6 +3,8 @@
 # Make lists of non-overlapping structural variants with at least 50 bp between them.
 # Read throught the file, splitting input lines into separate output files when the struct variant
 # would overlap with a previous structural variant.
+#
+# Output headerless files with tab separated columns: CHROM POS ID REF ALT START END HOM HET
 
 IFS=$'\t'
 PROC_DATA_DIR=/net/wonderland/home/grosscol/projects/structvar/proc_data
@@ -11,14 +13,26 @@ PROC_DATA_DIR=/net/wonderland/home/grosscol/projects/structvar/proc_data
 # Inputs #
 ##########
 INPUT_FILE=${PROC_DATA_DIR}/sv_selected.tsv.gz
+ID_CRAM_FILE=${PROC_DATA_DIR}/id_cram_map.tsv
 
 ###########
 # Outputs #
 ###########
 OUTPUT_DIR="${PROC_DATA_DIR}/isolated"
 INDEX_FILE=${PROC_DATA_DIR}/sv_cram_map.tsv
-
 mkdir -p ${OUTPUT_DIR}
+truncate -s 0 ${INDEX_FILE}
+
+###################################
+# Read id -> cram map into memory #
+###################################
+
+declare -A ID_CRAM_ARR
+while read -ra ARR; do
+   ID=${ARR[1]}
+   VAL=${ARR[2]}
+   ID_CRAM_ARR[$ID]=${VAL}
+done < <(tail -n +2 ${ID_CRAM_FILE})
 
 ###############################################
 # Derermine where header ends and data begins #
@@ -34,7 +48,7 @@ done < <(zcat "${INPUT_FILE}")
 #############################################
 # State: ~Tracking output buffers and files #
 #############################################
-# File destinations, end positions, and buffers for output data
+# File destinations, end positions, output records, and index of what went where
 DEST_ARR=()
 ENDS_ARR=()
 BUFF_ARR=()
@@ -50,15 +64,14 @@ RECORD_NUM=0
 # Support functions #
 #####################
 generate_new_dest(){
-  # Args: DIR, CHR, INDEX
-  printf -v DEST_STR "%s_selected_p%.3d.tsv" $2 $3
-  echo "${1}/${DEST_STR}"
+  # Args: CHR, INDEX
+  printf "%s_selected_p%.3d.tsv" $1 $2
 }
 
 flush_dest_buffers(){
   for IDX in "${!DEST_ARR[@]}"; do
     # Chomp last two chracters "\n" to avoid writing trailing endline at end of file
-    echo -e "${BUFF_ARR[$IDX]::-2}" > "${DEST_ARR[$IDX]}"
+    echo -e "${BUFF_ARR[$IDX]::-2}" > "${OUTPUT_DIR}/${DEST_ARR[$IDX]}"
   done
   # Clear arrays
   DEST_ARR=()
@@ -90,8 +103,9 @@ while read -ra ARR; do
     CURR_CHR=${CHR}
     CURR_DEST_IDX=0
 
-    DEST_ARR[${CURR_DEST_IDX}]=$(generate_new_dest "${OUTPUT_DIR}" "${CHR}" "${CURR_DEST_IDX}")
-    echo "" > ${DEST_ARR[${CURR_DEST_IDX}]}
+    DEST_FILE=$(generate_new_dest "${CHR}" "${CURR_DEST_IDX}")
+    DEST_ARR[${CURR_DEST_IDX}]="${DEST_FILE}"
+    echo "" > "${OUTPUT_DIR}/${DEST_ARR[${CURR_DEST_IDX}]}"
 
     ENDS_ARR[$CURR_DEST_IDX]=0
     BUFF_ARR[$CURR_DEST_IDX]=""
@@ -124,17 +138,30 @@ while read -ra ARR; do
       CURR_DEST_IDX=${LEN}
 
       ENDS_ARR[${CURR_DEST_IDX}]=0
-      DEST_ARR[${CURR_DEST_IDX}]=$(generate_new_dest "${OUTPUT_DIR}" "${CHR}" "${CURR_DEST_IDX}")
+      DEST_FILE=$(generate_new_dest "${CHR}" "${CURR_DEST_IDX}")
+      DEST_ARR[${CURR_DEST_IDX}]="${DEST_FILE}"
       BUFF_ARR[${CURR_DEST_IDX}]=""
     fi
   fi
 
-  # Append line to output buffer.
-  BUFF_ARR[${CURR_DEST_IDX}]+="${ARR[*]}\n"
+  # Lookup CRAM FILE by ID.  Prefer id of homozygous sample.
+  if [ -n "${ARR[7]}" ]; then
+    SAMPLE_ID=${ARR[7]}
+  else
+    SAMPLE_ID=${ARR[8]}
+  fi
+  CRAM_FILE=${ID_CRAM_ARR[$SAMPLE_ID]}
+
+  # Generate line and append to output buffer: CHR POS ID START STOP CRAMFILE
+  BASE_INFO="${ARR[@]:0:3}\t${ARR[@]:5:2}"
+  OUT_LINE="${BASE_INFO}\t${CRAM_FILE}\n"
+  BUFF_ARR[${CURR_DEST_IDX}]+="$OUT_LINE"
+
+  # Update buffer's tracked end position.
   ENDS_ARR[${CURR_DEST_IDX}]=$((END + BP_SPACE))
 
-  # Emit corresponding index record
-  echo -e "${ID}\t${CURR_DEST_IDX}" >> "${INDEX_FILE}"
+  # Emit corresponding index record mapping structvar ids to cram file sequences will be in.
+  echo -e "${BASE_INFO}\t${DEST_ARR[${CURR_DEST_IDX}]}" >> "${INDEX_FILE}"
 
   RECORD_NUM=$(( RECORD_NUM + 1 ))
 done < <(zcat "${INPUT_FILE}" | tail -n +${DATA_START_ROW})

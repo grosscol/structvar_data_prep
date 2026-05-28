@@ -28,7 +28,7 @@ readarray -t RND_IDS < <(make_n_rnd_ids ${RND_ID_POOL_SIZE})
 ################################
 MASS_LOOKUP=/net/wonderland/home/grosscol/projects/structvar/pipelines/select/mass_cram_lookup.sh
 PROC_DATA_DIR=/net/wonderland/home/grosscol/projects/structvar/proc_data
-RESULTS="${PROC_DATA_DIR}/sv_id_map.tsv"
+RESULTS="${PROC_DATA_DIR}/id_cram_map.tsv"
 echo -e "rndid\tnwdid\tpath" > "${RESULTS}"
 
 NLINE=0

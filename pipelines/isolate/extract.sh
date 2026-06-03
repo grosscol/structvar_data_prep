@@ -30,11 +30,21 @@ mkdir -p ${MERGE_DIR}
 #############
 # Functions #
 #############
+
+generate_output_path(){
+  # $1 is output directory.
+  # $2 is input index filename.
+  local BNAME=$(basename -s .tsv $2)
+  echo "${1}/${BNAME}.cram"
+}
+
 process_sv_index(){
-# $1 Path to a structural variant to crams index file
+# $1 Path to a structural variant to input. A crams index file.
+  local INFILE=$1
   local N_PIPE=0
   local N_ROUND=0
-  local BASE_NAME=$(basename -s '.tsv' $1)
+  local BASE_NAME=$(basename -s '.tsv' "${INFILE}")
+  local OUTPUT_CRAM=$( generate_output_path "${OUTPUT_DIR}" "${INFILE}" )
 
   while read -ra ARR; do
     local CRAM_FILE=${ARR[5]}
@@ -43,10 +53,14 @@ process_sv_index(){
 
     # Merge and claer pipes when reach max count of pipes
     if [ $N_PIPE -eq $MAX_PIPES ]; then
+      echo "merging pipes to ${MERGE_DIR}/m_${N_ROUND}.cram"
       samtools merge -o "${MERGE_DIR}/m_${N_ROUND}.cram" "${PIPE_DIR}"/*.cram
+
       rm "${PIPE_DIR}"/*
       sleep 1
+
       N_PIPE=0
+      N_ROUND=$(( N_ROUND + 1 ))
     fi
 
     # Make new pipe for subsetting associated cram of a structural variant
@@ -55,8 +69,7 @@ process_sv_index(){
     samtools view --cram -o ${PIPE_NAME} ${CRAM_FILE} ${REGION} &
 
     N_PIPE=$(( N_PIPE + 1 ))
-    N_ROUND=$(( N_ROUND + 1 ))
-  done < <(head -n 305 $1)
+  done < <(head -n 305 $INFILE)
 
   # Final pipe merge if present
   N_PIPES_REMAIN=$(find "${PIPE_DIR}" -maxdepth 1 -type p | wc -l)
@@ -67,7 +80,7 @@ process_sv_index(){
   fi
 
   # Merge the merged files into a final cram
-  local OUTPUT_CRAM="${OUTPUT_DIR}/${BASE_NAME}.cram"
+  
   local N_MERGE_FILES=$(find "${MERGE_DIR}" -maxdepth 1 -type f | wc -l)
 
   if [ $N_MERGE_FILES -gt 1 ]; then
@@ -90,12 +103,18 @@ process_sv_index(){
 NFILE=0
 for FILE in ${INPUT_DIR}/*; do
   # logging
-  echo "processing ${FILE}"
+  echo "Processing: ${FILE}"
+  DEST=$( generate_output_path "${OUTPUT_DIR}" "${FILE}" )
 
-  BASE_NAME=$(basename -s '.tsv' $FILE)
+  # debugging limit run
   NFILE=$(( NFILE + 1 ))
-  if [ $NFILE -gt 5 ]; then
+  if [ $NFILE -gt 351 ]; then
     break
   fi
-  process_sv_index $FILE
+
+  if stat "${DEST}" > /dev/null 2>&1; then
+    echo "Skipping.   (${DEST})"
+  else
+    process_sv_index $FILE
+  fi
 done

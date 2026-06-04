@@ -21,6 +21,7 @@ scratch/*
 # Data directories and binaries
 cram_summ
 crams/*
+result/*
 data*
 het_hom_sel
 
